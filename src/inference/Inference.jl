@@ -8,12 +8,14 @@ using DynamicPPL: Metadata, _tail, VarInfo, TypedVarInfo,
     Selector, AbstractSamplerState, DefaultContext, PriorContext,
     LikelihoodContext, MiniBatchContext, set_flag!, unset_flag!
 using Distributions, Libtask, Bijectors
-using LinearAlgebra
+using DistributionsAD: VectorOfMultivariate
+using ProgressMeter, LinearAlgebra
 using ..Turing: PROGRESS, NamedDist, NoDist, Turing
 using StatsFuns: logsumexp
-using Random: AbstractRNG, randexp
+using Random: GLOBAL_RNG, AbstractRNG, randexp
 using DynamicPPL
 using AbstractMCMC: AbstractModel, AbstractSampler
+using Bijectors: _debug
 using MCMCChains: Chains
 
 import AbstractMCMC
@@ -312,12 +314,15 @@ function AbstractMCMC.bundle_samples(
     model::Model,
     spl::Sampler,
     N::Integer,
-    ts::Vector,
+    ts::Vector{<:AbstractTransition},
     chain_type::Type{Chains};
+    raw_output::Bool=false,
     discard_adapt::Bool=true,
     save_state=false,
     kwargs...
 )
+    raw_output && return ts
+
     # Check if we have adaptation samples.
     if discard_adapt && :n_adapts in fieldnames(typeof(spl.alg))
         ts = ts[(spl.alg.n_adapts+1):end]
@@ -598,7 +603,7 @@ function assume(
             vi[vn] = vectorize(dist, r)
             setorder!(vi, vn, get_num_produce(vi))
         else
-        r = vi[vn]
+            r = vi[vn]
         end
     else
         r = isa(spl, SampleFromUniform) ? init(dist) : rand(dist)
@@ -608,7 +613,7 @@ function assume(
     #       r is genereated from some uniform distribution which is different from the prior
     # acclogp!(vi, logpdf_with_trans(dist, r, istrans(vi, vn)))
 
-    return r, logpdf_with_trans(dist, r, istrans(vi, vn))
+    return r, invlink_logpdf_trans(spl, dist, r, istrans(vi, vn))
 end
 
 function observe(
@@ -722,7 +727,7 @@ function dot_assume(
 )
     @assert length(dist) == size(var, 1)
     r = get_and_set_val!(vi, vns, dist, spl)
-    lp = sum(logpdf_with_trans(dist, r, istrans(vi, vns[1])))
+    lp = sum(invlink_logpdf_trans(spl, dist, r, istrans(vi, vns[1])))
     var .= r
     return var, lp
 end
@@ -735,7 +740,7 @@ function dot_assume(
 )
     r = get_and_set_val!(vi, vns, dists, spl)
     # Make sure `r` is not a matrix for multivariate distributions
-    lp = sum(logpdf_with_trans.(dists, r, istrans(vi, vns[1])))
+    lp = sum(invlink_logpdf_trans.(Ref(spl), dists, r, istrans(vi, vns[1])))
     var .= r
     return var, lp
 end
@@ -830,6 +835,18 @@ function set_val!(
     return val
 end
 
+function invlink_logpdf_trans(spl, dist, x, trans)
+    #if dist isa Dirichlet || dist isa VectorOfMultivariate{<:Any, <:Dirichlet}
+        if trans
+            return logpdf_with_trans(dist, invlink(dist, x), true)
+        else
+            return logpdf_with_trans(dist, x, false)
+        end
+    #else
+    #    return logpdf_with_trans(dist, x, trans)
+    #end
+end
+
 # observe
 function dot_tilde(ctx::DefaultContext, sampler, right, left, vi)
     return _dot_tilde(sampler, right, left, vi)
@@ -864,8 +881,8 @@ function dot_observe(
     vi::VarInfo,
 )
     increment_num_produce!(vi)
-    Turing.DEBUG && @debug "dist = $dist"
-    Turing.DEBUG && @debug "value = $value"
+    Turing.DEBUG && _debug("dist = $dist")
+    Turing.DEBUG && _debug("value = $value")
     return sum(logpdf(dist, value))
 end
 function dot_observe(
@@ -875,8 +892,8 @@ function dot_observe(
     vi::VarInfo,
 )
     increment_num_produce!(vi)
-    Turing.DEBUG && @debug "dists = $dists"
-    Turing.DEBUG && @debug "value = $value"
+    Turing.DEBUG && _debug("dists = $dists")
+    Turing.DEBUG && _debug("value = $value")
     return sum(logpdf.(dists, value))
 end
 function dot_observe(
