@@ -314,7 +314,7 @@ function AbstractMCMC.bundle_samples(
     model::Model,
     spl::Sampler,
     N::Integer,
-    ts::Vector{<:AbstractTransition},
+    ts::Vector,
     chain_type::Type{Chains};
     raw_output::Bool=false,
     discard_adapt::Bool=true,
@@ -613,7 +613,7 @@ function assume(
     #       r is genereated from some uniform distribution which is different from the prior
     # acclogp!(vi, logpdf_with_trans(dist, r, istrans(vi, vn)))
 
-    return r, invlink_logpdf_trans(spl, dist, r, istrans(vi, vn))
+    return r, logpdf_with_trans(dist, r, istrans(vi, vn))
 end
 
 function observe(
@@ -727,7 +727,7 @@ function dot_assume(
 )
     @assert length(dist) == size(var, 1)
     r = get_and_set_val!(vi, vns, dist, spl)
-    lp = sum(invlink_logpdf_trans(spl, dist, r, istrans(vi, vns[1])))
+    lp = sum(logpdf_with_trans(dist, r, istrans(vi, vns[1])))
     var .= r
     return var, lp
 end
@@ -740,7 +740,7 @@ function dot_assume(
 )
     r = get_and_set_val!(vi, vns, dists, spl)
     # Make sure `r` is not a matrix for multivariate distributions
-    lp = sum(invlink_logpdf_trans.(Ref(spl), dists, r, istrans(vi, vns[1])))
+    lp = sum(logpdf_with_trans.(dists, r, istrans(vi, vns[1])))
     var .= r
     return var, lp
 end
@@ -833,18 +833,6 @@ function set_val!(
         vi[vns[ind]] = vectorize(dist, val[ind])
     end
     return val
-end
-
-function invlink_logpdf_trans(spl, dist, x, trans)
-    #if dist isa Dirichlet || dist isa VectorOfMultivariate{<:Any, <:Dirichlet}
-        if trans
-            return logpdf_with_trans(dist, invlink(dist, x), true)
-        else
-            return logpdf_with_trans(dist, x, false)
-        end
-    #else
-    #    return logpdf_with_trans(dist, x, trans)
-    #end
 end
 
 # observe

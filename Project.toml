@@ -73,4 +73,4 @@ UnicodePlots = "b8865327-cd53-5732-bb35-84acbb429228"
 Zygote = "e88e6eb3-aa80-5325-afca-941959d7151f"
 
 [targets]
-test = ["Pkg", "TerminalLoggers", "Test", "UnicodePlots", "StatsBase", "SpecialFunctions", "FiniteDifferences", "DynamicHMC", "CmdStan", "BenchmarkTools", "Zygote"]
+test = ["Pkg", "TerminalLoggers", "Test", "UnicodePlots", "StatsBase", "FiniteDifferences", "DynamicHMC", "CmdStan", "BenchmarkTools", "Zygote"]

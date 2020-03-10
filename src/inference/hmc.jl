@@ -447,7 +447,7 @@ function assume(
     Turing.DEBUG && _debug("dist = $dist")
     Turing.DEBUG && _debug("vn = $vn")
     Turing.DEBUG && _debug("r = $r, typeof(r)=$(typeof(r))")
-    return r, invlink_logpdf_trans(spl, dist, r, istrans(vi, vn))
+    return r, logpdf_with_trans(dist, r, istrans(vi, vn))
 end
 
 function dot_assume(
@@ -461,7 +461,7 @@ function dot_assume(
     updategid!.(Ref(vi), vns, Ref(spl))
     r = vi[vns]
     var .= r
-    return var, sum(invlink_logpdf_trans(spl, dist, r, istrans(vi, vns[1])))
+    return var, sum(logpdf_with_trans(dist, r, istrans(vi, vns[1])))
 end
 function dot_assume(
     spl::Sampler{<:Hamiltonian},
@@ -473,7 +473,7 @@ function dot_assume(
     updategid!.(Ref(vi), vns, Ref(spl))
     r = reshape(vi[vec(vns)], size(var))
     var .= r
-    return var, sum(invlink_logpdf_trans.(Ref(spl), dists, r, istrans(vi, vns[1])))
+    return var, sum(logpdf_with_trans.(dists, r, istrans(vi, vns[1])))
 end
 
 function observe(
