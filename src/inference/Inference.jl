@@ -9,7 +9,7 @@ using DynamicPPL: Metadata, _tail, VarInfo, TypedVarInfo,
     LikelihoodContext, MiniBatchContext, set_flag!, unset_flag!
 using Distributions, Libtask, Bijectors
 using DistributionsAD: VectorOfMultivariate
-using ProgressMeter, LinearAlgebra
+using LinearAlgebra
 using ..Turing: PROGRESS, NamedDist, NoDist, Turing
 using StatsFuns: logsumexp
 using Random: GLOBAL_RNG, AbstractRNG, randexp
